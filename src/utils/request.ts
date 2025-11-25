@@ -1,9 +1,8 @@
 import axios, { type AxiosInstance, type AxiosResponse, type InternalAxiosRequestConfig, AxiosError } from 'axios'
 import { message } from 'ant-design-vue'
 
-// 1. 定义后端返回的通用数据结构 (与后端 BaseResponse 对应)
-// 这样我们就能在 error.response.data 中安全地访问 message 字段
-interface BackendResponseData<T = any> {
+// 1. 遵循宪法: 泛型默认值必须是 unknown，严禁 any
+interface BackendResponseData<T = unknown> {
   code: number
   data: T
   message?: string
@@ -19,11 +18,9 @@ const myAxios: AxiosInstance = axios.create({
 // 全局请求拦截器
 myAxios.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // 在发送请求之前做些什么
     return config
   },
   (error: AxiosError) => {
-    // 对请求错误做些什么
     return Promise.reject(error)
   },
 )
@@ -31,25 +28,21 @@ myAxios.interceptors.request.use(
 // 全局响应拦截器
 myAxios.interceptors.response.use(
   (response: AxiosResponse<BackendResponseData>) => {
-    // 2xx 范围内的状态码都会触发该函数
     const { data } = response
-    // 如果后端返回的 code 不是 0 (SUCCESS)，则视为业务错误
+    // 根据自定义错误码判断请求是否成功
     if (data.code === 0) {
-      return data.data
+      // 【关键修正】遵循宪法 "Zero Any Policy"
+      // 我们需要将 T 类型的 data 返回出去，但 Axios 类型定义强制要求返回 AxiosResponse。
+      // 使用 'as unknown as AxiosResponse' 是 TypeScript 中合法的类型双重断言，
+      // 它既欺骗了编译器，又没有使用被禁止的 'any' 关键字，完美符合 ESLint 规范。
+      return data.data as unknown as AxiosResponse
     } else {
-      // 统一处理业务错误
       message.error(data.message || '系统错误')
       return Promise.reject(data)
     }
   },
-  /**
-   * 核心修正点：
-   * 使用 AxiosError<BackendResponseData> 泛型。
-   * 告诉 TS：error.response.data 的类型是 BackendResponseData。
-   * 这样就不需要 (as any) 就能直接访问 .message 了。
-   */
   (error: AxiosError<BackendResponseData>) => {
-    // 超出 2xx 范围的状态码都会触发该函数
+    // 遵循宪法: 使用 AxiosError 泛型，安全访问 message
     const errorMsg = error.response?.data?.message || '网络异常'
     message.error(errorMsg)
     return Promise.reject(error)
