@@ -53,3 +53,10 @@ export const userLoginUsingPost = (params: UserLoginRequest) => {
 export const getLoginUserUsingGet = () => {
   return request.get<BaseResponse<LoginUserVO>, LoginUserVO>('/user/current')
 }
+
+/**
+ * 用户退出登录
+ */
+export const userLogoutUsingPost = () => {
+  return request.post<BaseResponse<boolean>, boolean>('/user/logout')
+}
