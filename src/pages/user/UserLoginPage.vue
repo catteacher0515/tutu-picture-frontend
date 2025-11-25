@@ -46,31 +46,49 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue';
-import { message } from 'ant-design-vue';
-import { useRouter } from 'vue-router';
-import type { UserLoginRequest } from '@/api/user';
+import { reactive } from 'vue'
+import { message } from 'ant-design-vue'
+import { useRouter } from 'vue-router'
+import { userLoginUsingPost } from '@/api/user'
+import type { UserLoginRequest } from '@/api/user'
+import { useUserStore } from '@/stores/user'
 
-const router = useRouter();
+const router = useRouter()
+const userStore = useUserStore()
 
 const formState = reactive<UserLoginRequest>({
   userAccount: '',
   userPassword: '',
-});
+})
 
+/**
+ * 提交登录表单
+ * @param values
+ */
 const onFinish = async (values: UserLoginRequest) => {
-  console.log('Success:', values);
-  // TODO: 对接后端登录接口
-  message.success('登录成功');
+  try {
+    // 1. 调用后端接口
+    const res = await userLoginUsingPost(values)
 
-  // ✅ 修复：使用 await 调用路由跳转，解决 unused router 和 missing await 问题
-  await router.push('/');
-};
+    // 2. 处理成功
+    // res 是 LoginUserVO 对象 (request.ts 拦截器已处理)
+    if (res) {
+      message.success('登录成功')
+      // 更新全局状态
+      userStore.setLoginUser(res)
 
-// ✅ 修复：使用 unknown 替代 any
+      // 3. 跳转到主页
+      await router.push('/')
+    }
+  } catch (error) {
+    // 错误已由拦截器统一处理，这里仅记录
+    console.error("登录失败", error)
+  }
+}
+
 const onFinishFailed = (errorInfo: unknown) => {
-  console.log('Failed:', errorInfo);
-};
+  console.log('Failed:', errorInfo)
+}
 </script>
 
 <style scoped>

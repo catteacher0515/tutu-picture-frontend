@@ -5,17 +5,22 @@
     </a-config-provider>
   </div>
 </template>
-
 <script setup lang="ts">
-// 引入 Ant Design Vue 的中文包 (可选，为了以后组件显示中文)
-import zhCN from 'ant-design-vue/es/locale/zh_CN';
-import dayjs from 'dayjs';
-import 'dayjs/locale/zh-cn';
+import zhCN from 'ant-design-vue/es/locale/zh_CN'
+import dayjs from 'dayjs'
+import 'dayjs/locale/zh-cn'
+import { useUserStore } from '@/stores/user'
+import { onMounted } from 'vue'
 
-dayjs.locale('zh-cn');
-const locale = zhCN;
+dayjs.locale('zh-cn')
+const locale = zhCN
+
+const userStore = useUserStore()
+
+// 页面加载时，尝试获取登录用户
+onMounted(() => {
+  userStore.fetchLoginUser()
+})
 </script>
-
 <style scoped>
-/* 这里留空，或者写一些全局样式 */
 </style>

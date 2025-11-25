@@ -28,6 +28,7 @@ export interface LoginUserVO {
   userProfile?: string;
   userRole: string;
   createTime: string;
+  updateTime: string;
 }
 
 /**
@@ -35,7 +36,20 @@ export interface LoginUserVO {
  * @param params 注册参数
  */
 export const userRegisterUsingPost = (params: UserRegisterRequest) => {
-  // 后端返回的是 BaseResponse<Long>，经过 request.ts 拦截器处理后，
-  // 这里的 Promise resolve 出来的值就是 data.data (即 number 类型的 id)
   return request.post<BaseResponse<number>, number>('/user/register', params)
+}
+
+/**
+ * 用户登录接口
+ * @param params 登录参数
+ */
+export const userLoginUsingPost = (params: UserLoginRequest) => {
+  return request.post<BaseResponse<LoginUserVO>, LoginUserVO>('/user/login', params)
+}
+
+/**
+ * 获取当前登录用户
+ */
+export const getLoginUserUsingGet = () => {
+  return request.get<BaseResponse<LoginUserVO>, LoginUserVO>('/user/current')
 }
