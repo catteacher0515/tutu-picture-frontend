@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import UserLoginPage from '@/pages/user/UserLoginPage.vue' // 👈 引入登录页
 import UserRegisterPage from '@/pages/user/UserRegisterPage.vue' // 👈 引入注册页
+import UserManagePage from '@/pages/admin/UserManagePage.vue' // 稍后创建
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -25,6 +26,11 @@ const router = createRouter({
       path: '/about',
       name: 'about',
       component: () => import('../views/AboutView.vue'),
+    },
+    {
+      path: '/admin/userManage',
+        name: 'adminUserManage',
+      component: UserManagePage,
     },
   ],
 })

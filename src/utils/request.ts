@@ -8,14 +8,12 @@ interface BackendResponseData<T = unknown> {
   message?: string
 }
 
-// 创建 Axios 实例
 const myAxios: AxiosInstance = axios.create({
   baseURL: 'http://localhost:8080/api',
   timeout: 10000,
   withCredentials: true,
 })
 
-// 全局请求拦截器
 myAxios.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     return config
@@ -25,24 +23,26 @@ myAxios.interceptors.request.use(
   },
 )
 
-// 全局响应拦截器
 myAxios.interceptors.response.use(
   (response: AxiosResponse<BackendResponseData>) => {
     const { data } = response
-    // 根据自定义错误码判断请求是否成功
+    // 1. 成功
     if (data.code === 0) {
-      // 【关键修正】遵循宪法 "Zero Any Policy"
-      // 我们需要将 T 类型的 data 返回出去，但 Axios 类型定义强制要求返回 AxiosResponse。
-      // 使用 'as unknown as AxiosResponse' 是 TypeScript 中合法的类型双重断言，
-      // 它既欺骗了编译器，又没有使用被禁止的 'any' 关键字，完美符合 ESLint 规范。
       return data.data as unknown as AxiosResponse
-    } else {
+    }
+      // 2. 【新增逻辑】如果是“未登录”错误 (40100)，不弹窗，直接 Reject
+    // 这样前端 Store 里的 catch 依然能捕获到，但用户不会看到红色的报错
+    else if (data.code === 40100) {
+      return Promise.reject(data)
+    }
+    // 3. 其他业务错误，正常弹窗
+    else {
       message.error(data.message || '系统错误')
       return Promise.reject(data)
     }
   },
   (error: AxiosError<BackendResponseData>) => {
-    // 遵循宪法: 使用 AxiosError 泛型，安全访问 message
+    // HTTP 状态码错误处理
     const errorMsg = error.response?.data?.message || '网络异常'
     message.error(errorMsg)
     return Promise.reject(error)

@@ -20,9 +20,9 @@ export interface UserLoginRequest {
   userPassword: string
 }
 
-// 用户信息 VO
+// 用户信息 VO (ID 改为 string)
 export interface LoginUserVO {
-  id: number
+  id: string
   userName: string
   userAvatar?: string
   userProfile?: string;
@@ -33,7 +33,6 @@ export interface LoginUserVO {
 
 /**
  * 用户注册接口
- * @param params 注册参数
  */
 export const userRegisterUsingPost = (params: UserRegisterRequest) => {
   return request.post<BaseResponse<number>, number>('/user/register', params)
@@ -41,7 +40,6 @@ export const userRegisterUsingPost = (params: UserRegisterRequest) => {
 
 /**
  * 用户登录接口
- * @param params 登录参数
  */
 export const userLoginUsingPost = (params: UserLoginRequest) => {
   return request.post<BaseResponse<LoginUserVO>, LoginUserVO>('/user/login', params)
@@ -59,4 +57,62 @@ export const getLoginUserUsingGet = () => {
  */
 export const userLogoutUsingPost = () => {
   return request.post<BaseResponse<boolean>, boolean>('/user/logout')
+}
+
+// --- 管理员接口相关 ---
+
+// 通用删除请求 (ID 改为 string)
+export interface DeleteRequest {
+  id: string
+}
+
+// 创建用户请求
+export interface UserAddRequest {
+  userAccount: string
+  userAvatar?: string
+  userName?: string
+  userPassword?: string
+  userProfile?: string
+  userRole?: string
+}
+
+// 更新用户请求 (ID 改为 string)
+export interface UserUpdateRequest {
+  id: string
+  userAccount?: string
+  userAvatar?: string
+  userName?: string
+  userProfile?: string
+  userRole?: string
+}
+
+/**
+ * 创建用户 (管理员)
+ * 注意：后端返回的 ID 已经被 Jackson 转为 string
+ */
+export const addUserUsingPost = (params: UserAddRequest) => {
+  return request.post<BaseResponse<string>, string>('/user/add', params)
+}
+
+/**
+ * 删除用户 (管理员)
+ */
+export const deleteUserUsingPost = (params: DeleteRequest) => {
+  return request.post<BaseResponse<boolean>, boolean>('/user/delete', params)
+}
+
+/**
+ * 更新用户 (管理员)
+ */
+export const updateUserUsingPost = (params: UserUpdateRequest) => {
+  return request.post<BaseResponse<boolean>, boolean>('/user/update', params)
+}
+
+/**
+ * 根据 id 获取用户 (管理员) (ID 参数改为 string)
+ */
+export const getUserByIdUsingGet = (id: string) => {
+  return request.get<BaseResponse<LoginUserVO>, LoginUserVO>('/user/get', {
+    params: { id },
+  })
 }
