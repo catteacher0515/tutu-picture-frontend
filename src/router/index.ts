@@ -1,8 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
-import UserLoginPage from '@/pages/user/UserLoginPage.vue' // 👈 引入登录页
-import UserRegisterPage from '@/pages/user/UserRegisterPage.vue' // 👈 引入注册页
-import UserManagePage from '@/pages/admin/UserManagePage.vue' // 稍后创建
+import UserLoginPage from '@/pages/user/UserLoginPage.vue'
+import UserRegisterPage from '@/pages/user/UserRegisterPage.vue'
+import UserManagePage from '@/pages/admin/UserManagePage.vue'
+import PictureDetail from '@/pages/PictureDetail.vue' // 👈 引入没问题
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -29,8 +30,29 @@ const router = createRouter({
     },
     {
       path: '/admin/userManage',
-        name: 'adminUserManage',
+      name: 'adminUserManage',
       component: UserManagePage,
+    },
+    {
+      path: '/admin/spaceManage',
+      name: 'SpaceManage',
+      component: () => import('@/pages/admin/SpaceManagePage.vue'),
+      meta: {
+        title: '空间管理',
+        requiresAuth: true
+      }
+    },
+    // 👇👇👇 核心修复区 👇👇👇
+    {
+      // 🕵️‍♂️ 侦探修正：把 '/picture_detail/:id' 改为 '/picture/:id'
+      // 这样才能匹配你访问的 URL: http://localhost:5173/picture/2001...
+      path: '/picture/:id',
+      name: 'PictureDetail',
+      component: PictureDetail,
+      props: true, // 建议加上，允许将 id 作为 props 传给组件
+      meta: {
+        title: '图片详情',
+      }
     },
   ],
 })

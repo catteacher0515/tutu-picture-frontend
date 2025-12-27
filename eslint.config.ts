@@ -14,7 +14,14 @@ export default defineConfigWithVueTs(
     files: ['**/*.{ts,mts,tsx,vue}'],
   },
 
-  globalIgnores(['**/dist/**', '**/dist-ssr/**', '**/coverage/**']),
+  // 🕵️‍♂️ 核心修复：将生成目录加入全局忽略列表
+  // 这样 ESLint 就不会去检查 pictureController.ts 里那些 @ts-ignore 了
+  globalIgnores([
+    '**/dist/**',
+    '**/dist-ssr/**',
+    '**/coverage/**',
+    'src/generated/**/*'
+  ]),
 
   pluginVue.configs['flat/essential'],
   vueTsConfigs.recommended,

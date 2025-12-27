@@ -1,19 +1,22 @@
-import axios, { type AxiosInstance, type AxiosResponse, type InternalAxiosRequestConfig, AxiosError } from 'axios'
+import axios from 'axios'
+import type { AxiosInstance, AxiosResponse, AxiosError, InternalAxiosRequestConfig, AxiosRequestConfig } from 'axios'
 import { message } from 'ant-design-vue'
 
-// 1. 遵循宪法: 泛型默认值必须是 unknown，严禁 any
+// 后端返回的通用数据结构
 interface BackendResponseData<T = unknown> {
-  code: number
+  code: number | string
   data: T
   message?: string
 }
 
+// 1. 创建实例
 const myAxios: AxiosInstance = axios.create({
-  baseURL: 'http://localhost:8080/api',
+  baseURL: 'http://localhost:8081/api', // 你的后端地址 (带上 /api 前缀)
   timeout: 10000,
   withCredentials: true,
 })
 
+// 2. 请求拦截器
 myAxios.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     return config
@@ -23,30 +26,43 @@ myAxios.interceptors.request.use(
   },
 )
 
+// 3. 响应拦截器
 myAxios.interceptors.response.use(
   (response: AxiosResponse<BackendResponseData>) => {
     const { data } = response
-    // 1. 成功
-    if (data.code === 0) {
+    const code = Number(data.code)
+
+    if (code === 0) {
+      // 剥离外壳，直接返回核心数据
+      // 使用 unknown 绕过类型检查，但运行时返回的是 data.data
       return data.data as unknown as AxiosResponse
-    }
-      // 2. 【新增逻辑】如果是“未登录”错误 (40100)，不弹窗，直接 Reject
-    // 这样前端 Store 里的 catch 依然能捕获到，但用户不会看到红色的报错
-    else if (data.code === 40100) {
+    } else if (code === 40100) {
+      // 未登录
       return Promise.reject(data)
-    }
-    // 3. 其他业务错误，正常弹窗
-    else {
+    } else {
       message.error(data.message || '系统错误')
       return Promise.reject(data)
     }
   },
-  (error: AxiosError<BackendResponseData>) => {
-    // HTTP 状态码错误处理
-    const errorMsg = error.response?.data?.message || '网络异常'
-    message.error(errorMsg)
+  (error: AxiosError) => {
+    message.error('网络异常')
     return Promise.reject(error)
   },
 )
+
+/**
+ * 🕵️‍♂️ 适配器函数 (OpenAPI 生成代码专用)
+ * 必须导出名为 request 的函数
+ * 泛型 T 是后端返回的数据类型
+ */
+export const request = async <T = unknown>(
+  url: string,
+  options: AxiosRequestConfig = {},
+): Promise<T> => {
+  return myAxios.request({
+    url,
+    ...options,
+  }) as Promise<T>
+}
 
 export default myAxios
