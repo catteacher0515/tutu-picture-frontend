@@ -43,15 +43,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
+import { message } from 'ant-design-vue';
 import { getLoginUser } from '@/generated/backend/userController';
 import type { LoginUserVO } from '@/api/user';
 import PictureEditConsole from '@/components/PictureEditConsole.vue';
-
+import PictureEditWebSocket, { PictureEditMessageTypeEnum } from '@/utils/PictureEditWebSocket';
 // --- 定义接口 ---
 interface PictureVO {
-  id: number;
+  id: number; // 这里的 id 通常是 number (long)
   url: string;
   name: string;
   introduction?: string;
@@ -62,7 +63,6 @@ interface PictureVO {
 
 // --- 模拟数据方法 ---
 const getPictureVOById = async (id: string | number): Promise<{ data: PictureVO }> => {
-  // ✅ 修复 1：打印一下 id，证明我们用到了它
   console.log('正在获取图片详情，Mock ID:', id);
 
   return new Promise((resolve) => {
@@ -86,6 +86,8 @@ const getPictureVOById = async (id: string | number): Promise<{ data: PictureVO 
 const route = useRoute();
 const picture = ref<PictureVO | null>(null);
 const loginUser = ref<LoginUserVO | null>(null);
+const editingUser = ref<LoginUserVO | null>(null);
+let websocket: PictureEditWebSocket | null = null;
 
 // --- 核心逻辑 ---
 onMounted(async () => {
@@ -103,11 +105,10 @@ onMounted(async () => {
       throw new Error('未登录');
     }
   } catch (error) {
-    // ✅ 修复 2：把 error 打印出来，证明我们关心错误原因
     console.warn('⚠️ 获取用户失败或未登录，切换为访客模式。错误详情:', error);
 
     loginUser.value = {
-      id: '1993239384233156614', // 👈 你的真实 ID
+      id: '1993239384233156614',
       userName: '访客侦探',
       userAvatar: '',
       userProfile: '我是兜底的',
@@ -123,11 +124,90 @@ onMounted(async () => {
     if (picRes.data) {
       picture.value = picRes.data;
       console.log('✅ [详情页] 已加载图片:', picture.value.name);
+
+      // 3. 图片加载成功后，初始化 WebSocket 连接
+      initWebSocket();
     }
   } catch (error) {
     console.error('❌ 图片加载失败:', error);
   }
 });
+
+// 4. 页面销毁时断开连接
+onUnmounted(() => {
+  if (websocket) {
+    websocket.disconnect();
+  }
+});
+
+// --- WebSocket 初始化逻辑 ---
+const initWebSocket = () => {
+  if (!picture.value || !picture.value.id) {
+    return;
+  }
+
+  // ✅ 修正：将 ID 转为字符串，且我们在 utils 里已经把类定义改为了 string
+  const pictureId = String(picture.value.id);
+
+  // 🛡️ 防止重复连接
+  if (websocket) {
+    websocket.disconnect();
+  }
+
+  // 创建实例
+  websocket = new PictureEditWebSocket(pictureId, {
+    onOpen: () => {
+      console.log('🚀 [WebSocket] 连接成功，准备协同！');
+    },
+
+    // ✅ 修复：加上 ESLint 忽略注释，跳过 any 检查
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onMessage: (msg: any) => {
+      console.log('📬 [WebSocket] 收到消息:', msg);
+
+      if (!msg) return;
+
+      switch (msg.type) {
+        case PictureEditMessageTypeEnum.INFO:
+          message.info(msg.message);
+          break;
+
+        case PictureEditMessageTypeEnum.ERROR:
+          message.error(msg.message);
+          break;
+
+        case PictureEditMessageTypeEnum.ENTER_EDIT:
+          if (msg.user) {
+            editingUser.value = msg.user;
+            message.success(`${msg.user.userName} 开始编辑图片`);
+          }
+          break;
+
+        case PictureEditMessageTypeEnum.EXIT_EDIT:
+          editingUser.value = null;
+          message.info('当前无人编辑，你可以抢占了');
+          break;
+
+        case PictureEditMessageTypeEnum.EDIT_ACTION:
+          message.loading(`执行操作: ${msg.editAction}`);
+          break;
+      }
+    },
+
+    // ✅ 修复：加上 ESLint 忽略注释
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onError: (err: any) => {
+      console.error('💥 [WebSocket] 连接报错:', err);
+      message.error('协同服务连接失败');
+    },
+
+    onClose: () => {
+      console.log('🔌 [WebSocket] 连接关闭');
+    }
+  });
+
+  websocket.connect();
+};
 </script>
 
 <style scoped>
