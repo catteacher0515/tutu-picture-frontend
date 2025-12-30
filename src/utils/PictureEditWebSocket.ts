@@ -53,7 +53,7 @@ export interface PictureEditWebSocketOptions {
   onOpen?: () => void;
   onMessage?: (msg: PictureEditResponseMessage) => void;
   // 🟢 修复点：加上这一行注释，让 ESLint 忽略这里的 any
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   onError?: (err: any) => void;
   onClose?: (event: CloseEvent) => void;
 }

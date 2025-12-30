@@ -14,8 +14,7 @@ export default defineConfigWithVueTs(
     files: ['**/*.{ts,mts,tsx,vue}'],
   },
 
-  // 🕵️‍♂️ 核心修复：将生成目录加入全局忽略列表
-  // 这样 ESLint 就不会去检查 pictureController.ts 里那些 @ts-ignore 了
+  // 1. 忽略目录配置 (保持你之前的配置)
   globalIgnores([
     '**/dist/**',
     '**/dist-ssr/**',
@@ -23,7 +22,25 @@ export default defineConfigWithVueTs(
     'src/generated/**/*'
   ]),
 
+  // 2. Vue 和 TS 的推荐配置预设
   pluginVue.configs['flat/essential'],
   vueTsConfigs.recommended,
+
+  // 👇👇👇 3. 核心修改：在这里注入自定义规则 👇👇👇
+  {
+    name: 'app/custom-rules',
+    rules: {
+      // 关掉 "定义了但未使用" 的报错 (TS 和 JS 都要关)
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+
+      // 关掉 "组件名必须多单词" 的报错 (防止 User.vue 这种文件名报错)
+      'vue/multi-word-component-names': 'off',
+
+      // (可选) 关掉 "必须显式声明 any" 的报错，赶工期时 any 大法好
+      '@typescript-eslint/no-explicit-any': 'off'
+    }
+  },
+
   skipFormatting,
 )

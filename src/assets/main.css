@@ -1,35 +1,149 @@
+/* ==========================================================================
+   🕵️‍♂️ 核心样式表 (Hand-Drawn Edition - Final)
+   说明：全量覆盖默认 Vue 样式，实现“手绘/纸质”风格
+   包含：全局背景、组件重绘、自动填充修复、登录卡片样式
+   ========================================================================== */
+
 @import './base.css';
 
+/* 1. 基础容器重置 */
 #app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
   font-weight: normal;
 }
 
-a,
-.green {
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  /* 强制应用米黄色背景，模拟纸张 */
+  background-color: #f8f4e6 !important;
+  /* 使用可爱一点的非衬线字体 */
+  font-family: "Comic Sans MS", "幼圆", "Segoe UI Emoji", "Noto Color Emoji", sans-serif !important;
+  color: #2c3e50 !important;
+}
+
+a {
   text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
-  transition: 0.4s;
-  padding: 3px;
+  color: #2c3e50;
+  transition: 0.2s;
 }
 
-@media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
-  }
+/* 2. Ant Design Vue 深度定制：手绘风格核心补丁 */
+
+/* 通用组件：加粗边框、黑色实心阴影、微调圆角 */
+.ant-btn,
+.ant-input,
+.ant-input-password,
+.ant-input-affix-wrapper,
+.ant-select-selector,
+.ant-card,
+.ant-modal-content,
+.ant-dropdown-menu,
+.ant-message-notice-content,
+.ant-tag {
+  /* 黑色粗边框 */
+  border: 2px solid #000 !important;
+  /* 黑色实心阴影 */
+  box-shadow: 4px 4px 0px rgba(0, 0, 0, 1) !important;
+  /* 不规则圆角 */
+  border-radius: 8px 2px 8px 2px / 2px 8px 2px 8px !important;
+  /* 背景纯白 */
+  background-color: #fff !important;
+  color: #000 !important;
+  /* 稍微旋转 */
+  transform: rotate(-0.2deg);
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
 }
 
-@media (min-width: 1024px) {
-  body {
-    display: flex;
-    place-items: center;
-  }
+/* 3. 交互效果：悬停时“弹跳” */
+.ant-btn:hover,
+.ant-card:hover,
+.ant-input:hover,
+.ant-select-selector:hover {
+  transform: translate(-2px, -2px) rotate(0.5deg) !important;
+  box-shadow: 6px 6px 0px rgba(0, 0, 0, 1) !important;
+  background-color: #fffbf0 !important;
+  z-index: 2;
+}
 
-  #app {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    padding: 0 2rem;
-  }
+/* 点击态 */
+.ant-btn:active, .ant-btn.ant-btn-primary:active {
+  transform: translate(2px, 2px) !important;
+  box-shadow: 0px 0px 0px rgba(0, 0, 0, 1) !important;
+}
+
+/* 4. 修复输入框背景变黄 (Autofill Fix) & 样式冲突 */
+.ant-input-affix-wrapper > input.ant-input {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  transform: none !important; /* 内部输入框不需要旋转 */
+}
+
+/* 强制覆盖浏览器自动填充的黄色背景 */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px white inset !important;
+  -webkit-text-fill-color: #000 !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* 5. 布局组件特殊处理 */
+.ant-layout-header {
+  background-color: #fff0d6 !important;
+  border-bottom: 3px solid #000 !important;
+  box-shadow: 0 4px 0px rgba(0,0,0,0.1) !important;
+  height: 64px;
+  line-height: 64px;
+  z-index: 100;
+  padding: 0 24px !important;
+}
+.ant-layout, .ant-layout-sider, .ant-layout-content {
+  background: transparent !important;
+}
+
+/* 6. 按钮颜色修正 */
+.ant-btn-primary {
+  color: #000 !important;
+  background-color: #ffcc00 !important; /* 主按钮黄色 */
+}
+
+/* 7. 登录页专用卡片样式 (Login Page Card) */
+.login-container {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  /* 不需要背景色，透出 body 的米黄色 */
+}
+
+.hand-drawn-card {
+  width: 400px;
+  padding: 40px;
+  background-color: #fff;
+  border: 3px solid #000;
+  box-shadow: 10px 10px 0px rgba(0,0,0,1);
+  border-radius: 20px 5px 20px 5px / 5px 20px 5px 20px;
+  transform: rotate(-1deg);
+  text-align: center;
+}
+
+.hand-drawn-card h2 {
+  font-size: 28px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  color: #000;
+}
+
+.hand-drawn-card .sub-title {
+  color: #666;
+  margin-bottom: 30px;
+  font-size: 14px;
 }

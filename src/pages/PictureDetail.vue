@@ -183,7 +183,7 @@ const initWebSocket = () => {
       console.log('🚀 [WebSocket] 连接成功，准备协同！');
     },
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     onMessage: (msg: any) => {
       if (!msg) return;
 
@@ -231,7 +231,7 @@ const initWebSocket = () => {
       }
     },
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     onError: (err: any) => {
       console.error('💥 [WebSocket] 连接报错:', err);
       message.error('协同服务连接失败');

@@ -14,14 +14,14 @@ const columns = [
   { title: '操作', key: 'action' },
 ]
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const dataList = ref<any[]>([])
 const loading = ref(false)
 const pagination = reactive({ current: 1, pageSize: 10, total: 0 })
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const modalVisible = ref(false)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const formData = reactive<any>({ spaceName: '', spaceLevel: 0 })
 
 // --- 模拟方法 ---
@@ -34,7 +34,7 @@ const fetchData = async () => {
   }, 500)
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const handleTableChange = (page: any) => {
   pagination.current = page.current
   pagination.pageSize = page.pageSize
