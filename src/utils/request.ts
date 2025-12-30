@@ -11,7 +11,7 @@ interface BackendResponseData<T = unknown> {
 
 // 1. 创建实例
 const myAxios: AxiosInstance = axios.create({
-  baseURL: 'http://localhost:8081/api', // 你的后端地址 (带上 /api 前缀)
+  baseURL: 'http://localhost:8081', // 你的后端地址 (带上 /api 前缀)
   timeout: 10000,
   withCredentials: true,
 })

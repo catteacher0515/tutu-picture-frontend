@@ -37,141 +37,85 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue';
-import { message } from 'ant-design-vue';
+import { ref, computed } from 'vue';
 import type { LoginUserVO } from '@/api/user';
-// 引入刚才写好的通信类和枚举
-import PictureEditWebSocket, {
-  PictureEditMessageTypeEnum,
+import {
   PictureEditActionEnum,
+  PictureEditMessageTypeEnum,
   type PictureEditResponseMessage
 } from '@/utils/PictureEditWebSocket';
 
-// --- Props 定义 ---
+// --- 1. 定义 Props (接收父组件数据) ---
 interface Props {
   pictureId: number;
-  user: LoginUserVO; // 当前登录用户
+  user: LoginUserVO;       // 我是谁
+  editingUser: LoginUserVO | null; // 当前谁在编辑 (由父组件控制)
 }
 const props = defineProps<Props>();
 
-// --- 状态定义 ---
-const isEditing = ref<boolean>(false); // 我是否持有编辑权
-const editingUser = ref<LoginUserVO | null>(null); // 当前谁在编辑
+// --- 2. 定义 Emits (通知父组件做事) ---
+const emit = defineEmits(['enter-edit', 'exit-edit', 'edit-action']);
+
+// --- 3. 状态与计算属性 ---
 const logs = ref<{ time: string; content: string }[]>([]);
 
-// WebSocket 实例
-let socket: PictureEditWebSocket | null = null;
+// 计算属性：判断“我”是否是当前的编辑者
+const isEditing = computed(() => {
+  if (!props.editingUser || !props.user) return false;
+  return props.editingUser.id === props.user.id;
+});
 
-// --- 辅助函数：写日志 ---
+// --- 4. 交互事件 (只负责通知父组件) ---
+const enterEdit = () => {
+  emit('enter-edit');
+};
+
+const exitEdit = () => {
+  emit('exit-edit');
+};
+
+const doAction = (action: PictureEditActionEnum) => {
+  emit('edit-action', action);
+};
+
+// --- 5. 辅助函数：写日志 ---
 const addLog = (content: string) => {
   logs.value.unshift({
     time: new Date().toLocaleTimeString(),
     content,
   });
-  // 保持日志不超过 20 条
   if (logs.value.length > 20) {
     logs.value.pop();
   }
 };
 
-// --- 核心：初始化 WebSocket ---
-const initSocket = () => {
-  if (!props.pictureId || !props.user || !props.user.id) {
-    console.warn('缺少必要参数，无法初始化 WebSocket');
-    return;
-  }
-
-  // 1. 创建实例
-  socket = new PictureEditWebSocket(props.pictureId);
-
-  // 2. 建立连接
-  socket.connect();
-
-  // 3. 监听：通知消息 (INFO)
-  socket.on(PictureEditMessageTypeEnum.INFO, (msg: PictureEditResponseMessage) => {
-    // 过滤掉那条"连接成功"的废话，只显示重要的
-    if (!msg.message.includes('连接成功')) {
-      addLog(`📢 ${msg.message}`);
-    }
-  });
-
-  // 4. 监听：错误消息 (ERROR)
-  socket.on(PictureEditMessageTypeEnum.ERROR, (msg: PictureEditResponseMessage) => {
-    addLog(`⚠️ ${msg.message}`);
-    message.error(msg.message);
-  });
-
-  // 5. 监听：有人进入编辑 (ENTER_EDIT)
-  socket.on(PictureEditMessageTypeEnum.ENTER_EDIT, (msg: PictureEditResponseMessage) => {
-    addLog(`🔒 用户 ${msg.user?.userName} 开始编辑`);
-
-    if (msg.user) {
-      editingUser.value = msg.user;
-
-      // 判断是不是我 (注意 ID 类型转换)
-      if (String(msg.user.id) === String(props.user.id)) {
-        isEditing.value = true;
-        message.success('你已获得编辑权限，请开始操作！');
+// --- 6. 暴露给父组件的方法 (父组件收到 WS 消息后调用这里) ---
+const handleWebSocketMessage = (msg: PictureEditResponseMessage) => {
+  switch (msg.type) {
+    case PictureEditMessageTypeEnum.INFO:
+      // 过滤掉连接成功的冗余消息
+      if (!msg.message.includes('连接成功')) {
+        addLog(`📢 ${msg.message}`);
       }
-    }
-  });
-
-// 6. 监听：有人退出编辑 (EXIT_EDIT)
-  socket.on(PictureEditMessageTypeEnum.EXIT_EDIT, (msg: PictureEditResponseMessage) => {
-    // ✅ 修复报错：随便用一下 msg，比如打印出来，或者写进日志
-    console.log('有人退出:', msg);
-    addLog(`🔓 ${msg.message}`); // 顺便展示在面板上，完美！
-  });
-
-  // 7. 监听：编辑动作 (EDIT_ACTION)
-  socket.on(PictureEditMessageTypeEnum.EDIT_ACTION, (msg: PictureEditResponseMessage) => {
-    addLog(`⚡ ${msg.user?.userName} 执行了 [${msg.editAction}]`);
-    // TODO: 这里后续要绑定到 Canvas 上，现在先看日志
-  });
-};
-
-// --- 按钮事件 ---
-const enterEdit = () => {
-  if (socket) {
-    socket.sendMessage({ type: PictureEditMessageTypeEnum.ENTER_EDIT });
+      break;
+    case PictureEditMessageTypeEnum.ERROR:
+      addLog(`⚠️ ${msg.message}`);
+      break;
+    case PictureEditMessageTypeEnum.ENTER_EDIT:
+      addLog(`🔒 用户 ${msg.user?.userName} 开始编辑`);
+      break;
+    case PictureEditMessageTypeEnum.EXIT_EDIT:
+      addLog(`🔓 用户 ${msg.user?.userName} 退出编辑`);
+      break;
+    case PictureEditMessageTypeEnum.EDIT_ACTION:
+      addLog(`⚡ ${msg.user?.userName} 执行了 [${msg.editAction}]`);
+      break;
   }
 };
 
-const exitEdit = () => {
-  // 后端暂时没实现“主动退出”，这里我们先做个假动作或刷新页面
-  // 目前 MVP 逻辑是：谁先点谁就一直占着，直到断开
-  message.info('MVP版本：刷新页面可释放权限');
-};
-
-const doAction = (action: PictureEditActionEnum) => {
-  if (socket) {
-    socket.sendMessage({
-      type: PictureEditMessageTypeEnum.EDIT_ACTION,
-      editAction: action
-    });
-  }
-};
-
-// --- 生命周期 ---
-onMounted(() => {
-  initSocket();
-});
-
-onUnmounted(() => {
-  if (socket) {
-    socket.disconnect();
-  }
-});
-
-// 监听图片 ID 变化，重新连接 (防止用户在详情页直接切换图片)
-watch(() => props.pictureId, (newVal) => {
-  if (newVal) {
-    if (socket) socket.disconnect();
-    logs.value = [];
-    isEditing.value = false;
-    editingUser.value = null;
-    initSocket();
-  }
+// 暴露出去
+defineExpose({
+  handleWebSocketMessage,
 });
 </script>
 

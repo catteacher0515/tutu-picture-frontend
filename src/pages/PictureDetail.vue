@@ -8,7 +8,13 @@
               v-if="picture"
               :src="picture.url"
               :alt="picture.name"
-              style="max-width: 100%; max-height: 600px; object-fit: contain"
+              :style="{
+                maxWidth: '100%',
+                maxHeight: '600px',
+                objectFit: 'contain',
+                transform: `rotate(${editState.rotate}deg) scale(${editState.scale})`,
+                transition: 'transform 0.3s ease'
+              }"
             />
             <a-skeleton v-else active :paragraph="{ rows: 10 }" />
           </div>
@@ -32,9 +38,14 @@
           </a-card>
 
           <PictureEditConsole
+            ref="pictureEditConsoleRef"
             v-if="picture && loginUser"
             :picture-id="Number(picture.id)"
             :user="loginUser"
+            :editing-user="editingUser"
+            @enter-edit="handleEnterEdit"
+            @exit-edit="handleExitEdit"
+            @edit-action="handleEditAction"
           />
         </a-space>
       </a-col>
@@ -43,16 +54,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, reactive } from 'vue';
 import { useRoute } from 'vue-router';
 import { message } from 'ant-design-vue';
 import { getLoginUser } from '@/generated/backend/userController';
 import type { LoginUserVO } from '@/api/user';
 import PictureEditConsole from '@/components/PictureEditConsole.vue';
-import PictureEditWebSocket, { PictureEditMessageTypeEnum } from '@/utils/PictureEditWebSocket';
+import PictureEditWebSocket, {
+  PictureEditMessageTypeEnum,
+  PictureEditActionEnum
+} from '@/utils/PictureEditWebSocket';
+
 // --- 定义接口 ---
 interface PictureVO {
-  id: number; // 这里的 id 通常是 number (long)
+  id: number;
   url: string;
   name: string;
   introduction?: string;
@@ -88,6 +103,13 @@ const picture = ref<PictureVO | null>(null);
 const loginUser = ref<LoginUserVO | null>(null);
 const editingUser = ref<LoginUserVO | null>(null);
 let websocket: PictureEditWebSocket | null = null;
+const pictureEditConsoleRef = ref();
+
+// 视觉状态 (旋转角度、缩放比例)
+const editState = reactive({
+  rotate: 0,
+  scale: 1.0,
+});
 
 // --- 核心逻辑 ---
 onMounted(async () => {
@@ -106,7 +128,6 @@ onMounted(async () => {
     }
   } catch (error) {
     console.warn('⚠️ 获取用户失败或未登录，切换为访客模式。错误详情:', error);
-
     loginUser.value = {
       id: '1993239384233156614',
       userName: '访客侦探',
@@ -133,7 +154,6 @@ onMounted(async () => {
   }
 });
 
-// 4. 页面销毁时断开连接
 onUnmounted(() => {
   if (websocket) {
     websocket.disconnect();
@@ -146,30 +166,43 @@ const initWebSocket = () => {
     return;
   }
 
-  // ✅ 修正：将 ID 转为字符串，且我们在 utils 里已经把类定义改为了 string
+  // 权限控制 - 只有团队空间 (spaceId 存在) 才开启协同
+  if (!picture.value.spaceId) {
+    console.log('👋 [详情页] 非团队空间图片，不开启协同编辑功能');
+    return;
+  }
+
   const pictureId = String(picture.value.id);
 
-  // 🛡️ 防止重复连接
   if (websocket) {
     websocket.disconnect();
   }
 
-  // 创建实例
   websocket = new PictureEditWebSocket(pictureId, {
     onOpen: () => {
       console.log('🚀 [WebSocket] 连接成功，准备协同！');
     },
 
-    // ✅ 修复：加上 ESLint 忽略注释，跳过 any 检查
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onMessage: (msg: any) => {
-      console.log('📬 [WebSocket] 收到消息:', msg);
-
       if (!msg) return;
+
+      // 消息透传给子组件写日志
+      if (msg.type && pictureEditConsoleRef.value) {
+        pictureEditConsoleRef.value.handleWebSocketMessage(msg);
+      }
 
       switch (msg.type) {
         case PictureEditMessageTypeEnum.INFO:
-          message.info(msg.message);
+          // 🟢 核心修改 1：如果是 LOAD_STATE 消息 (初始化/迟到者)，同步后端状态
+          if (msg.rotate != null && msg.scale != null) {
+            editState.rotate = msg.rotate;
+            editState.scale = msg.scale;
+          }
+          // 只有正常的 INFO 消息才弹窗，如果是 LOAD_STATE 这种暗号可以不弹，或者 message 为空就不弹
+          if (msg.message && msg.message !== 'LOAD_STATE') {
+            message.info(msg.message);
+          }
           break;
 
         case PictureEditMessageTypeEnum.ERROR:
@@ -189,12 +222,15 @@ const initWebSocket = () => {
           break;
 
         case PictureEditMessageTypeEnum.EDIT_ACTION:
-          message.loading(`执行操作: ${msg.editAction}`);
+          // 🟢 核心修改 2：废弃本地计算，直接应用后端的绝对值 (Single Source of Truth)
+          if (msg.rotate != null && msg.scale != null) {
+            editState.rotate = msg.rotate;
+            editState.scale = msg.scale;
+          }
           break;
       }
     },
 
-    // ✅ 修复：加上 ESLint 忽略注释
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError: (err: any) => {
       console.error('💥 [WebSocket] 连接报错:', err);
@@ -207,6 +243,30 @@ const initWebSocket = () => {
   });
 
   websocket.connect();
+};
+
+// --- 发送指令 (UI 事件) ---
+const handleEnterEdit = () => {
+  if (websocket) {
+    websocket.sendMessage({ type: PictureEditMessageTypeEnum.ENTER_EDIT });
+  }
+};
+
+const handleExitEdit = () => {
+  if (websocket) {
+    websocket.sendMessage({ type: PictureEditMessageTypeEnum.EXIT_EDIT });
+  }
+};
+
+const handleEditAction = (action: PictureEditActionEnum) => {
+  // 现在只负责发送指令，不负责本地计算
+  // 必须等待 WebSocket 回调 (EDIT_ACTION) 来更新 UI，确保绝对同步
+  if (websocket) {
+    websocket.sendMessage({
+      type: PictureEditMessageTypeEnum.EDIT_ACTION,
+      editAction: action
+    });
+  }
 };
 </script>
 
@@ -223,11 +283,13 @@ const initWebSocket = () => {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  overflow: hidden;
 }
 .image-wrapper {
   display: flex;
   justify-content: center;
   align-items: center;
   width: 100%;
+  height: 100%;
 }
 </style>
